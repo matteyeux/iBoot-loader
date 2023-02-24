@@ -1,5 +1,5 @@
 [package]
-name = "iboot"
+name = "iboot-loader"
 version = "0.1.0"
 edition = "2021"
 
@@ -9,4 +9,3 @@ crate-type = ["cdylib"]
 [dependencies]
 binaryninja = { git = "https://github.com/Vector35/binaryninja-api.git"}
 log = "0.4.17"
-minidump = "0.15.2"
