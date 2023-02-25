@@ -1,5 +1,5 @@
 use binaryninja::custombinaryview::register_view_type;
-use log::{debug, LevelFilter};
+use log::LevelFilter;
 
 mod view;
 
