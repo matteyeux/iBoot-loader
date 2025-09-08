@@ -6,16 +6,18 @@ use binaryninja::symbol::Symbol;
 use binaryninja::symbol::SymbolType;
 use byteorder::{LittleEndian, ReadBytesExt};
 use log::{error, info};
+use binaryninja::segment::SegmentFlags;
 
-use binaryninja::binaryview::{BinaryView, BinaryViewBase, BinaryViewExt};
-use binaryninja::custombinaryview::{
+use binaryninja::binary_view::{BinaryView, BinaryViewBase, BinaryViewExt};
+use binaryninja::custom_binary_view::{
     BinaryViewType, BinaryViewTypeBase, CustomBinaryView, CustomBinaryViewType, CustomView,
     CustomViewBuilder,
 };
-use binaryninja::databuffer::DataBuffer;
+use binaryninja::data_buffer::DataBuffer;
 use binaryninja::Endianness;
 
-type BinaryViewResult<R> = binaryninja::binaryview::Result<R>;
+type BinaryViewResult<R> = binaryninja::binary_view::Result<R>;
+
 
 /// The _iBoot_ binary view type, which the Rust plugin registers with the Binary Ninja core
 /// (via `binaryninja::custombinaryview::register_view_type`) as a possible binary view
@@ -77,6 +79,7 @@ pub struct iBootView {
     /// The handle to the "real" BinaryView object, in the Binary Ninja core.
     inner: binaryninja::rc::Ref<BinaryView>,
 }
+
 use std::str::Utf8Error;
 impl iBootView {
     fn new(view: &BinaryView) -> Self {
@@ -122,9 +125,9 @@ impl iBootView {
     }
 
     fn init(&self) -> BinaryViewResult<()> {
-        let parent_view = self.parent_view()?;
-        let parent_len = parent_view.len() as u64;
-        let read_buffer = parent_view.read_buffer(0, parent_view.len())?;
+        let parent_view = self.parent_view().ok_or(())?;
+        let parent_len = parent_view.len();
+        let read_buffer = parent_view.read_buffer(0, parent_view.len() as usize)?;
         let arch = CoreArchitecture::by_name("aarch64").ok_or(())?;
         let plat = arch.standalone_platform().ok_or(())?;
 
@@ -134,23 +137,25 @@ impl iBootView {
         let base_addr = self.find_base_addr(read_buffer);
         info!("Base address at {:#09x}", base_addr);
 
+        let segment_flags = SegmentFlags::new()
+            .readable(true)
+            .writable(false)
+            .executable(true)
+            .contains_data(true)
+            .contains_code(true);
+
         self.add_segment(
             Segment::builder(base_addr..base_addr + parent_len)
-                .parent_backing(parent_view.start()..parent_view.len() as u64)
-                .is_auto(true)
-                .readable(true)
-                .writable(false)
-                .executable(true)
-                .contains_data(true)
-                .contains_code(true),
+                .parent_backing(parent_view.start()..parent_view.len())
+                .is_auto(true).flags(segment_flags)
         );
 
         self.add_section(
-            Section::builder("iBoot", base_addr..base_addr + parent_len)
+            Section::builder("iBoot".to_string(), base_addr..base_addr + parent_len)
                 .semantics(Semantics::ReadOnlyCode)
                 .is_auto(true),
         );
-        self.add_entry_point(&plat, base_addr);
+        self.add_entry_point(base_addr);
         let start = Symbol::builder(SymbolType::Function, "_start", base_addr).create();
         self.define_auto_symbol(&start);
         Ok(())
@@ -184,7 +189,7 @@ unsafe impl CustomBinaryView for iBootView {
         Ok(iBootView::new(handle))
     }
 
-    fn init(&self, _args: Self::Args) -> BinaryViewResult<()> {
-        self.init()
+    fn init(&mut self, _args: Self::Args) -> BinaryViewResult<()> {
+        iBootView::init(self)
     }
 }

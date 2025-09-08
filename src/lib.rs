@@ -1,12 +1,12 @@
-use binaryninja::custombinaryview::register_view_type;
-use log::LevelFilter;
+use binaryninja::custom_binary_view::register_view_type;
+use log::{info};
 
 mod view;
 
 #[no_mangle]
 #[allow(non_snake_case)]
 pub extern "C" fn CorePluginInit() -> bool {
-    binaryninja::logger::init(LevelFilter::Trace).expect("failed to initialize logging");
+    info!("The logger has been initialized!");
 
     register_view_type("iBoot", "iBoot", view::iBootViewType::new);
 
