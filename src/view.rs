@@ -127,7 +127,7 @@ impl iBootView {
     fn init(&self) -> BinaryViewResult<()> {
         let parent_view = self.parent_view().ok_or(())?;
         let parent_len = parent_view.len();
-        let read_buffer = parent_view.read_buffer(0, parent_view.len() as usize)?;
+        let read_buffer = parent_view.read_buffer(0, parent_view.len() as usize).ok_or(())?;
         let arch = CoreArchitecture::by_name("aarch64").ok_or(())?;
         let plat = arch.standalone_platform().ok_or(())?;
 
